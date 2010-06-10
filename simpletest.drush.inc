@@ -49,6 +49,7 @@ function simpletest_drush_command() {
 	'options' => array(
 	  '--detail' => 'Show detailed test output.',
 	  '--color' => 'Use color highlighting for results output.',
+	  '--error-on-fail' => 'Exit to console with an error code if the test fails.',
 	),
     'drupal dependencies' => array('simpletest'),
     'core' => array('6','7'),
@@ -94,7 +95,7 @@ function drush_simpletest_test_one($test_class='') {
 	global $verbose, $color;
   $verbose = is_null(drush_get_option('detail')) ? FALSE : TRUE;
   $color = is_null(drush_get_option('color')) ? FALSE : TRUE;
-		   
+  $error_on_fail = is_null(drush_get_option('error-on-fail')) ? FALSE : TRUE;
 
 	// call this method rather than simpletest_test_get_all() in order to bypass internal cache
 	$all_test_classes = simpletest_test_get_all_classes();
@@ -148,10 +149,13 @@ function drush_simpletest_test_one($test_class='') {
   // Cleanup our test results.
   simpletest_clean_results_table($id); 
   
-  if ('fail' == $status)
+  if ('fail' == $status) {
 	drush_print("Test $test_class FAILED!");  
+	if ($error_on_fail)
+		exit(-1);
+  }
   else
-	drush_print("Test $test_class PASSED.");    
+	drush_print("Test $test_class PASSED.");   
 }
 
 
