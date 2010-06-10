@@ -2,6 +2,12 @@
 // $Id: simpletest.drush.inc,v 1.6 2010/01/20 16:23:38 weitzman Exp $
 
 /**
+ * Modified version of simpletest.drush.inc.
+ *
+ * Original patch applied from http://drupal.org/node/580530 (http://drupal.org/user/49989)
+ */
+
+/**
  * @file Drush simpletest commands
  */
 
