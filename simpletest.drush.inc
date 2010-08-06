@@ -38,48 +38,48 @@ function simpletest_drush_help($section) {
  */
 function simpletest_drush_command() {
   $items['test'] = array(
-    'callback' => 'drush_simpletest_test_one',
-    'description' => 'Run a specified test and outputs the results on the command line.',
-    'examples' => array(
-       "drush test BlockTestCase" => "Run BlockTestCase and output results on the command line.",
-    ),
-    'arguments' => array(
-      'test_class' => 'The test case you want to run.',
-    ),
-	'options' => array(
-	  '--detail' => 'Show detailed test output.',
-	  '--color' => 'Use color highlighting for results output.',
-	  '--error-on-fail' => 'Exit to console with an error code if the test fails.',
-	),
-    'drupal dependencies' => array('simpletest'),
-    'core' => array('6','7'),
-    'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_FULL,
-  );
+      'callback' => 'drush_simpletest_test_one',
+      'description' => 'Run a specified test and outputs the results on the command line.',
+      'examples' => array(
+        "drush test BlockTestCase" => "Run BlockTestCase and output results on the command line.",
+        ),
+      'arguments' => array(
+        'test_class' => 'The test case you want to run.',
+        ),
+      'options' => array(
+        '--detail' => 'Show detailed test output.',
+        '--color' => 'Use color highlighting for results output.',
+        '--error-on-fail' => 'Exit to console with an error code if the test fails.',
+        ),
+      'drupal dependencies' => array('simpletest'),
+      'core' => array('6','7'),
+      'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_FULL,
+      );
   $items['test-mail'] = array(
-    'description' => 'Run all tests and mail the results to your team.',
-    'examples' => array(
-       "drush test-mail me@example.com --extra=\"--class BlockTestCase\"" => "Run block tests & email to me.",
-       "drush test-mail me@example.com --extra=\"--all\"" => "Run all tests & email to me.",
-    ),
-    'arguments' => array(
-      'recipients' => 'A comma delimited list of email addrresses.',
-    ),
-    'options' => array(
-      '--extra' => 'Additional parameters to be passed to run-tests.sh',
-      '--php' => 'Full path to your PHP interpreter. Usually not needed.'
-    ),
-    'drupal dependencies' => array('simpletest'),
-    'core' => array('6','7'),
-  );
+      'description' => 'Run all tests and mail the results to your team.',
+      'examples' => array(
+        "drush test-mail me@example.com --extra=\"--class BlockTestCase\"" => "Run block tests & email to me.",
+        "drush test-mail me@example.com --extra=\"--all\"" => "Run all tests & email to me.",
+        ),
+      'arguments' => array(
+        'recipients' => 'A comma delimited list of email addrresses.',
+        ),
+      'options' => array(
+        '--extra' => 'Additional parameters to be passed to run-tests.sh',
+        '--php' => 'Full path to your PHP interpreter. Usually not needed.'
+        ),
+      'drupal dependencies' => array('simpletest'),
+      'core' => array('6','7'),
+      );
   $items['test-clean'] = array(
-    'description' => 'Delete leftover tables and files from prior test runs.',
-    'drupal dependencies' => array('simpletest'),
-    'core' => array('6','7'),
-  );
+      'description' => 'Delete leftover tables and files from prior test runs.',
+      'drupal dependencies' => array('simpletest'),
+      'core' => array('6','7'),
+      );
   $items['test-drush'] = array(
-    'description' => 'Run drush-specific tests',
-    'bootstrap' => DRUSH_BOOTSTRAP_DRUSH,
-  );
+      'description' => 'Run drush-specific tests',
+      'bootstrap' => DRUSH_BOOTSTRAP_DRUSH,
+      );
   return $items;
 }
 
@@ -92,29 +92,29 @@ function drush_simpletest_test_clean() {
 // A Drush command callback.
 function drush_simpletest_test_one($test_class='') {
 
-	global $verbose, $color;
+  global $verbose, $color;
   $verbose = is_null(drush_get_option('detail')) ? FALSE : TRUE;
   $color = is_null(drush_get_option('color')) ? FALSE : TRUE;
   $error_on_fail = is_null(drush_get_option('error-on-fail')) ? FALSE : TRUE;
 
-	// call this method rather than simpletest_test_get_all() in order to bypass internal cache
-	$all_test_classes = simpletest_test_get_all_classes();
-	
+  // call this method rather than simpletest_test_get_all() in order to bypass internal cache
+  $all_test_classes = simpletest_test_get_all_classes();
+
   // Check that the test class parameter has been set.
   if (empty($test_class)) {
-	  drush_print("\nAvailable test groups & classes");
-	  drush_print("-------------------------------");
-	  $current_group = '';
-	  foreach ($all_test_classes as $class => $details) {
-		if (class_exists($class) && method_exists($class, 'getInfo')) {
-			$info = call_user_func(array($class, 'getInfo'));
-			if ($info['group'] != $current_group) {
-				$current_group = $info['group'];
-				drush_print('[' . $current_group . ']');
-			}
-			drush_print("\t" . $class . ' - ' . $info['name']);
-		}
-	  }
+    drush_print("\nAvailable test groups & classes");
+    drush_print("-------------------------------");
+    $current_group = '';
+    foreach ($all_test_classes as $class => $details) {
+      if (class_exists($class) && method_exists($class, 'getInfo')) {
+        $info = call_user_func(array($class, 'getInfo'));
+        if ($info['group'] != $current_group) {
+          $current_group = $info['group'];
+          drush_print('[' . $current_group . ']');
+        }
+        drush_print("\t" . $class . ' - ' . $info['name']);
+      }
+    }
     return;
   }
 
@@ -133,29 +133,29 @@ function drush_simpletest_test_one($test_class='') {
 
   // pass or fail?
   $status = ((isset($test->results['#fail']) && $test->results['#fail'] > 0)
-           || (isset($test->results['#exception']) && $test->results['#exception'] > 0) ? 'fail' : 'pass');
-		   
+      || (isset($test->results['#exception']) && $test->results['#exception'] > 0) ? 'fail' : 'pass');
+
   // show verbose if test failed
   if ('fail' == $status)
-	$verbose = TRUE;
-		   
+    $verbose = TRUE;
+
   // grab any fatal errors that were logged before we clear the db
   list($last_prefix, $last_test_class) = simpletest_last_test_get($id);
-  simpletest_log_read($id, $last_prefix, $last_test_class);  
-  
+  simpletest_log_read($id, $last_prefix, $last_test_class);
+
   // Display results before database is cleared.
   _simpletest_script_reporter_display_results($id);
 
   // Cleanup our test results.
-  simpletest_clean_results_table($id); 
-  
+  simpletest_clean_results_table($id);
+
   if ('fail' == $status) {
-	drush_print("Test $test_class FAILED!");  
-	if ($error_on_fail)
-		exit(-1);
+    drush_print("Test $test_class FAILED!");
+    if ($error_on_fail)
+      exit(-1);
   }
   else
-	drush_print("Test $test_class PASSED.");   
+    drush_print("Test $test_class PASSED.");
 }
 
 
@@ -227,8 +227,8 @@ function _simpletest_script_reporter_init($test_class) {
  * Display test results.
  */
 function _simpletest_script_reporter_display_results($test_id) {
-	
-	global $verbose;
+
+  global $verbose;
 
   $end = timer_stop(_SIMPLETEST_TIMER_NAME);
   drush_print('Test run duration: ' . format_interval($end['time'] / 1000) . "\n");
@@ -239,10 +239,10 @@ function _simpletest_script_reporter_display_results($test_id) {
     drush_print('---------------------------');
 
     $results_map = array(
-      'pass' => 'Pass',
-      'fail' => 'Fail',
-      'exception' => 'Exception'
-    );
+        'pass' => 'Pass',
+        'fail' => 'Fail',
+        'exception' => 'Exception'
+        );
 
     $results = db_query('SELECT * FROM {simpletest} WHERE test_id = %d ORDER BY test_class, message_id', $test_id);
 
@@ -269,7 +269,7 @@ function _simpletest_script_reporter_display_results($test_id) {
  */
 function _simpletest_script_format_result($result, $results_map) {
   $summary = sprintf("%-10.10s %-30.30s %-5.5s\n",
-    $results_map[$result->status], basename($result->file), $result->line);
+      $results_map[$result->status], basename($result->file), $result->line);
 
   _simpletest_script_print($summary, _simpletest_script_color_code($result->status));
 
@@ -297,7 +297,7 @@ function _simpletest_script_print_error($message) {
  * @param $color_code The color code to use for coloring.
  */
 function _simpletest_script_print($message, $color_code) {
-global $color;
+  global $color;
   if ($color) {
     drush_print("\033[" . $color_code . "m" . $message . "\033[0m");
   }
