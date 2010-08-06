@@ -42,11 +42,13 @@ function simpletest_drush_command() {
       'description' => 'Run a specified test and outputs the results on the command line.',
       'examples' => array(
         "drush test BlockTestCase" => "Run BlockTestCase and output results on the command line.",
+        "drush test --all" => "Run all test cases and output results on the command line.",
         ),
       'arguments' => array(
         'test_class' => 'The test case you want to run.',
         ),
       'options' => array(
+        '--all' => 'Run all test cases.',
         '--detail' => 'Show detailed test output.',
         '--color' => 'Use color highlighting for results output.',
         '--error-on-fail' => 'Exit to console with an error code if the test fails.',
@@ -96,12 +98,13 @@ function drush_simpletest_test_one($test_class='') {
   $verbose = is_null(drush_get_option('detail')) ? FALSE : TRUE;
   $color = is_null(drush_get_option('color')) ? FALSE : TRUE;
   $error_on_fail = is_null(drush_get_option('error-on-fail')) ? FALSE : TRUE;
+  $all = is_null(drush_get_option('all')) ? FALSE : TRUE;
 
   // call this method rather than simpletest_test_get_all() in order to bypass internal cache
   $all_test_classes = simpletest_test_get_all_classes();
 
   // Check that the test class parameter has been set.
-  if (empty($test_class)) {
+  if (empty($test_class) && !$all) {
     drush_print("\nAvailable test groups & classes");
     drush_print("-------------------------------");
     $current_group = '';
@@ -118,46 +121,25 @@ function drush_simpletest_test_one($test_class='') {
     return;
   }
 
-  // Check the parameter is valid.
-  if (!isset($all_test_classes[$test_class]) && class_exists($test_class)) {
-    drush_set_error('simpletest test case does not exist', t("Test case !case not found.  Perhaps you spelt it wrong or need to enable the module?\nUse the drush test command with no arguments to see a list of available test cases.  E.g.\n\n\tdrush test\n", array('!case' => $test_class)));
-    return;
+  if ($all) {
+    // Run each class
+    foreach($all_test_classes as $class => $details) {
+      if (class_exists($class)) {
+        _simpletest_run_test_class($class, $verbose, $color, $error_on_fail);
+      }
+    }
   }
-
-  // Run tests.  We need an ID to get be able to retrieve errors.
-  db_query('INSERT INTO {simpletest_test_id} (test_id) VALUES (default)');
-  $id = db_last_insert_id('simpletest_test_id', 'test_id');
-  $test = new $test_class($id);
-  _simpletest_script_reporter_init($test_class);
-  $test->run();
-
-  // pass or fail?
-  $status = ((isset($test->results['#fail']) && $test->results['#fail'] > 0)
-      || (isset($test->results['#exception']) && $test->results['#exception'] > 0) ? 'fail' : 'pass');
-
-  // show verbose if test failed
-  if ('fail' == $status)
-    $verbose = TRUE;
-
-  // grab any fatal errors that were logged before we clear the db
-  list($last_prefix, $last_test_class) = simpletest_last_test_get($id);
-  simpletest_log_read($id, $last_prefix, $last_test_class);
-
-  // Display results before database is cleared.
-  _simpletest_script_reporter_display_results($id);
-
-  // Cleanup our test results.
-  simpletest_clean_results_table($id);
-
-  if ('fail' == $status) {
-    drush_print("Test $test_class FAILED!");
-    if ($error_on_fail)
-      exit(-1);
+  else {
+    // Check the parameter is valid.
+    if (!isset($all_test_classes[$test_class]) && class_exists($test_class)) {
+      drush_set_error('simpletest test case does not exist', t("Test case !case not found.  Perhaps you spelt it wrong or need to enable the module?\nUse the drush test command with no arguments to see a list of available test cases.  E.g.\n\n\tdrush test\n", array('!case' => $test_class)));
+      return;
+    }
+  
+    // Valid parameter, all good to actually go
+    _simpletest_run_test_class($class, $verbose, $color, $error_on_fail);
   }
-  else
-    drush_print("Test $test_class PASSED.");
 }
-
 
 // A Drush command callback.
 function drush_simpletest_test_mail($recipients) {
@@ -325,3 +307,37 @@ function _simpletest_script_color_code($status) {
   return 0; // Default formatting.
 }
 
+function _simpletest_run_test_class($test_class, $verbose, $color, $error_on_fail) {
+  // Run tests.  We need an ID to get be able to retrieve errors.
+  db_query('INSERT INTO {simpletest_test_id} (test_id) VALUES (default)');
+  $id = db_last_insert_id('simpletest_test_id', 'test_id');
+  $test = new $test_class($id);
+  _simpletest_script_reporter_init($test_class);
+  $test->run();
+
+  // pass or fail?
+  $failed = (isset($test->results['#fail']) && $test->results['#fail'] > 0)
+      || (isset($test->results['#exception']) && $test->results['#exception'] > 0);
+
+  // show verbose if test failed
+  if ($failed)
+    $verbose = TRUE;
+
+  // grab any fatal errors that were logged before we clear the db
+  list($last_prefix, $last_test_class) = simpletest_last_test_get($id);
+  simpletest_log_read($id, $last_prefix, $last_test_class);
+
+  // Display results before database is cleared.
+  _simpletest_script_reporter_display_results($id);
+
+  // Cleanup our test results.
+  simpletest_clean_results_table($id);
+
+  if ($failed) {
+    drush_print("Test $test_class FAILED!");
+    if ($error_on_fail)
+      exit(-1);
+  }
+  else
+    drush_print("Test $test_class PASSED.");
+}
