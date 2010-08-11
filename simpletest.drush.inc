@@ -25,6 +25,7 @@ function simpletest_drush_help($section) {
  */
 function simpletest_drush_command() {
   $items['test'] = array(
+      'callback' => 'drush_simpletest_test',
       'description' => 'Run a specified test and outputs the results on the command line.',
       'examples' => array(
         "drush test" => "Run all test cases and output results on the command line.",
@@ -34,7 +35,7 @@ function simpletest_drush_command() {
         'test_class' => 'The test case you want to run.',
         ),
       'options' => array(
-        '--detail' => 'Show detailed test output.',
+        '--quiet' => 'No output on stdout.',
         '--color' => 'Use color highlighting for results output.',
         '--error-on-fail' => 'Exit to console with an error code if the test fails.',
         '--mail' => 'Mail the recipients the output',
@@ -63,12 +64,13 @@ function simpletest_drush_command() {
 
 // A Drush command callback.
 function drush_simpletest_test($test_class=NULL) {
-  $verbose = !is_null(drush_get_option('detail'));
-  $color = !is_null(drush_get_option('color'));
-  $error_on_fail = !is_null(drush_get_option('error-on-fail'));
+  $stop_on_error = !is_null(drush_get_option('error-on-fail'));
 
   $processors = array();
-  $processors[] = new DrushSimpleTestPrintProcessor($verbose, $color);
+  if(is_null(drush_get_option('quiet'))) {
+    $color = !is_null(drush_get_option('color'));
+    $processors[] = new DrushSimpleTestPrintProcessor($color);
+  }
   if(!is_null(drush_get_option('recipients'))) {
     $processors[] = new DrushSimpleTestMailProcessor(explode(",", drush_get_option('recipients')));
   }
@@ -77,17 +79,16 @@ function drush_simpletest_test($test_class=NULL) {
   }
   $test = new DrushSimpleTest($processors);
 
-  if($test_class) {
-    try {
+  try {
+    if($test_class) {
       $test->test_class($test_class);
-      foreach($processors as $processor) {
-        $processor->process_results();
-      }
-    } catch(DrushSimpleTestException $e) {
-      drush_set_error($e->getMessage(), $e->getDetail());
+    } else {
+       $test->test_all_classes($stop_on_error);
     }
-  } else {
-    $test->test_all_classes($error_on_fail);
+  } catch(DrushSimpleTestException $e) {
+    drush_set_error($e->getMessage(), $e->getDetail());
+  } catch(Exception $e) {
+    drush_set_error($e->getMessage(), $e->getTraceAsString());
   }
 }
 

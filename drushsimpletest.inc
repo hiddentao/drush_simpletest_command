@@ -12,6 +12,9 @@ class DrushSimpleTest {
   public function __construct(array $processors=array()) {
     $this->test_classes = simpletest_test_get_all_classes();
     $this->processors = $processors;
+
+    // Make sure that at shutdown we process the results
+    register_shutdown_function(array($this, "process_results"));
   }
 
   public function get_test_classes() {
@@ -19,19 +22,29 @@ class DrushSimpleTest {
   }
 
   public function test_all_classes($stop_on_error) {
+    $error = FALSE;
+
     // Run all tests
     foreach($this->test_classes as $class => $details) {
       try {
         $this->test_class($class);
-      } catch(DrushSimpleTestException $e) {
+      } catch(Exception $e) {
+        $error = TRUE;
         if($stop_on_error) {
-          // FIXME Log $e?
-          break;
+          throw $e;
         }
       }
     }
 
-    // Process the results
+    if($error) {
+      throw new DrushSimpleTestException("A Drupal test failed");
+    }
+  }
+
+  /**
+   * Processes the results
+   */
+  public function process_results() {
     foreach($this->processors as $processor) {
       $processor->process_results();
     }
@@ -61,9 +74,16 @@ class DrushSimpleTest {
     list($last_prefix, $last_test_class) = simpletest_last_test_get($id);
     simpletest_log_read($id, $last_prefix, $last_test_class);
 
-    // Format the output
-    if($this->processor) {
-      $this->processor->add_test_results($id, $end['time']);
+    // Process the output
+    foreach($this->processors as $processor) {
+      $processor->add_suite($test_class, $end['time']/1000);
+    }
+
+    $results = db_query('SELECT * FROM {simpletest} WHERE test_id = %d ORDER BY test_class, message_id', $id);
+    while($result = db_fetch_object($results)) {
+      foreach($this->processors as $processor) {
+        $processor->add_result($result);
+      }
     }
 
     // Cleanup our test results.
@@ -86,7 +106,7 @@ class DrushSimpleTest {
 class DrushSimpleTestException extends Exception {
   private $detail;
 
-  public function __construct($message, string $detail=NULL) {
+  public function __construct($message, $detail=NULL) {
     parent::__construct($message);
     $this->detail = $detail;
   }
@@ -100,19 +120,16 @@ class DrushSimpleTestException extends Exception {
  * An abstract class which formats the results obtained by tests.
  */
 abstract class DrushSimpleTestProcessor {
-  /**
-   * Method to add all test results from a test run.
-   *
-   * @param $id The ID in the database
-   * @param $time The time (in milliseconds) it took to run the test
-   */
-  public function add_test_results(int $id, int $time) {
-    // FIXME Store the time
+  protected $tests;
 
-    $results = db_query('SELECT * FROM {simpletest} WHERE test_id = %d ORDER BY test_class, message_id', $id);
-    while($result = db_fetch_object($results)) {
-      $this->add_result($result);
-    }
+  protected function __construct() {
+    $this->tests = array();
+  }
+
+  /**
+   */
+  public function add_suite($class, $time=0) {
+    $this->tests[$class] = array('time' => $time, 'functions' => array());
   }
 
   /**
@@ -121,7 +138,26 @@ abstract class DrushSimpleTestProcessor {
    * @param $result A single result object as retrieved from the simpletest
    * database.
    */
-  protected abstract function add_result($result);
+  public function add_result($result, $time=0) {
+    list($class, $name) = explode('->', $result->function, 2);
+
+    if(!isset($this->tests[$class])) {
+      $this->add_suite($class);
+    }
+
+    $functions = $this->tests[$class]['functions'];
+    if(!isset($functions[$name])) {
+      $this->tests[$class]['functions'][$name] = array();
+    }
+
+    $f_res['time'] = $time;
+    $f_res['status'] = $result->status;
+    $f_res['message_group'] = $result->message_group;
+    $f_res['message'] = $result->message;
+    $f_res['file'] = $result->file;
+
+    $this->tests[$class]['functions'][$name][] = $f_res;
+  }
 
   /**
    * Function to be called to process the results. For example, output to stdout
@@ -141,41 +177,45 @@ class DrushSimpleTestXMLProcessor extends DrushSimpleTestProcessor {
     $this->xml_files = array();
   }
 
-  public function add_result($result) {
-    list($class, $name) = explode('->', $result->function, 2);
-
-    if(!isset($this->xml_files[$class])) {
-      $doc = new DomDocument('1.0');
-      $root = $doc->createElement('testsuite');
-      $root = $doc->appendChild($root);
-      $this->xml_files[$class] = $doc;
-    } else {
-      $doc = $this->xml_files[$class];
-    }
-
-    // Save the result into the XML:
-    $case = $doc->createElement('testcase');
-    $case->setAttribute('classname', $class);
-    $case->setAttribute('name', $name);
-
-    if ($result->status == 'fail') {
-      $fail = $doc->createElement('failure');
-      $fail->setAttribute('type', 'failure');
-      $fail->setAttribute('message', $result->message_group);
-      $text = $doc->createTextNode($result->message);
-      $fail->appendChild($text);
-      $case->appendChild($fail);
-    }
-  }
-
   public function process_results() {
     // Ensure the directory exists
     if(!is_dir($this->xml_dir)) {
       mkdir($this->xml_dir, 0755, TRUE);
     }
 
-    foreach($this->xml_files as $test_class => $doc) {
-      file_put_contents($this->xml_dir . '/' . $test_class . '.xml', $doc->saveXML());
+    foreach($this->tests as $class => $results) {
+      // Create the basic document
+      $doc = new DomDocument('1.0');
+      $doc->formatOutput = true;
+      $root = $doc->createElement('testsuite');
+      $root = $doc->appendChild($root);
+      $root->setAttribute('time', $results['time']);
+
+      // Store each result
+      foreach($results['functions'] as $function => $messages) {
+        $case = $doc->createElement('testcase');
+        $case->setAttribute('classname', $class);
+        $case->setAttribute('name', $function);
+        //$case->setAttribute('time', $time);
+        $case = $root->appendChild($case);
+
+        // Store each message if they're failures
+        foreach($messages as $message) {
+          if ($message['status'] == 'fail' || $message['status'] == 'exception') {
+            $fail = $doc->createElement('failure');
+            $fail->setAttribute('type', $message['status']);
+            $fail->setAttribute('message', $message['message_group']);
+            $text = $doc->createTextNode($message['message']);
+            $fail->appendChild($text);
+            $case->appendChild($fail);
+          }
+        }
+
+        // Save the file
+        $file = $this->xml_dir . '/' . $class . '.xml';
+        $content = $doc->saveXML();
+        file_put_contents($file, $content);
+      }
     }
   }
 }
@@ -184,18 +224,11 @@ class DrushSimpleTestXMLProcessor extends DrushSimpleTestProcessor {
  * Formats the output and prints to stdout using drush_print.
  */
 class DrushSimpleTestPrintProcessor extends DrushSimpleTestProcessor {
-  private $results;
-  private $verbose;
   private $color;
 
-  public function __construct($verbose=FALSE, $color=TRUE) {
+  public function __construct($color=TRUE) {
     $this->results = array();
-    $this->verbose = $verbose;
     $this->color = $color;
-  }
-
-  public function add_result($result) {
-    $this->results[] = $result;
   }
 
   /**
@@ -203,17 +236,18 @@ class DrushSimpleTestPrintProcessor extends DrushSimpleTestProcessor {
    * terminal size.
    */
   public function process_results() {
-    foreach($this->results as $result) {
-      $summary = sprintf("%-10.10s %-30.30s %-5.5s\n",
-          ucfirst($result->status), basename($result->file), $result->line);
+    // FIXME Implement me
+    #foreach($this->results as $result) {
+    #  $summary = sprintf("%-10.10s %-30.30s %-5.5s\n",
+    #      ucfirst($result->status), basename($result->file), $result->line);
 
-      $this->print_message($summary, self::color_code($result->status));
+    #  $this->print_message($summary, self::color_code($result->status));
 
-      $lines = explode("\n", wordwrap(trim(strip_tags($result->message)), 76));
-      foreach ($lines as $line) {
-        drush_print('    '.$line);
-      }
-    }
+    #  $lines = explode("\n", wordwrap(trim(strip_tags($result->message)), 76));
+    #  foreach ($lines as $line) {
+    #    drush_print('    '.$line);
+    #  }
+    #}
   }
 
   /**
@@ -242,7 +276,7 @@ class DrushSimpleTestPrintProcessor extends DrushSimpleTestProcessor {
    * @param $message The message to print.
    * @param $color_code The color code to use for coloring.
    */
-  private function print_message(string $message, int $color_code) {
+  private function print_message($message, $color_code) {
     if ($this->color) {
       drush_print("\033[" . $color_code . "m" . $message . "\033[0m");
     } else {
@@ -265,38 +299,43 @@ class DrushSimpleTestMailProcessor extends DrushSimpleTestProcessor {
     $this->statuses = array();
   }
 
-  public function add_result($result) {
-    $this->results[] = $result;
+  #public function add_result($result, $time=0) {
+  #  $this->results[] = $result;
 
-    if(!isset($this->statuses[$result->status])) {
-      $this->statuses[$result->status] = 0;
-    } else {
-      $this->statuses[$result->status]++;
-    }
-  }
+  #  if(!isset($this->statuses[$result->status])) {
+  #    $this->statuses[$result->status] = 0;
+  #  } else {
+  #    $this->statuses[$result->status]++;
+  #  }
+  #}
 
   /**
    * Processes the results by mailing
    */
   public function process_results() {
-    if($this->results) {
-      // Build subject
-      $statuses = array();
-      foreach($this->statuses as $status => $count) {
-        $statuses[] = $count . " " . $status;
-      }
-      $subject = "Test results - " . implode(", ", $statuses);
+  #  // FIXME implement me
+  #  if($this->results) {
+  #    // Build subject
+  #    $statuses = array();
+  #    foreach($this->statuses as $status => $count) {
+  #      $statuses[] = $count . " " . $status;
+  #    }
+  #    $subject = "Test results - " . implode(", ", $statuses);
 
-      // FIXME implement me
-      $output = "Test results\n\n";
-      foreach($results as $result) {
-        $output .= "Class: " . $result->class . "\n";
-        $output .= wordwrap(trim(strip_tags($result->message)), 79);
-      }
+  #    $output = "Test results\n\n";
+  #    foreach($results as $result) {
+  #      $output .= "Class: " . $result->class . "\n";
+  #      $output .= wordwrap(trim(strip_tags($result->message)), 79);
+  #    }
 
-      // Mail the results
-      mail(implode(",", $recipients), $subject, $output);
-    }
+  #    // Mail the results
+  #    mail(implode(",", $recipients), $subject, $output);
+  #  }
   }
 }
 
+// Change errors into exceptions
+set_error_handler("error_to_exception", E_ERROR );
+function error_to_exception($errno, $errstr, $errfile, $errline, $errcontext) {
+  throw new ErrorException($errno, $errstr, $errfile, $errline, $errcontext);
+}
