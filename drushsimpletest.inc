@@ -18,7 +18,7 @@ class DrushSimpleTest {
     return $this->test_classes;
   }
 
-  public function test_all_classes(boolean $stop_on_error) {
+  public function test_all_classes($stop_on_error) {
     // Run all tests
     foreach($this->test_classes as $class => $details) {
       try {
@@ -37,7 +37,7 @@ class DrushSimpleTest {
     }
   }
 
-  public function test_class(string $test_class) {
+  public function test_class($test_class) {
     if(!isset($this->test_classes[$test_class]) || !class_exists($test_class)) {
       throw new DrushSimpleTestException("Test class '$test_class' not found",
           t("Test case !case not found.  Perhaps you spelt it wrong or need to enable the module?", array('!case' => $test_class)));
@@ -73,8 +73,6 @@ class DrushSimpleTest {
     if ($failed) {
       throw new DrushSimpleTestException("Test '$test_class' failed", $result);
     }
-
-    return $result;
   }
 
   public function clean() {
@@ -138,7 +136,7 @@ class DrushSimpleTestXMLProcessor extends DrushSimpleTestProcessor {
   private $xml_dir;
   private $xml_files;
 
-  public function __construct(string $xml_dir) {
+  public function __construct($xml_dir) {
     $this->xml_dir = $xml_dir;
     $this->xml_files = array();
   }
@@ -171,7 +169,11 @@ class DrushSimpleTestXMLProcessor extends DrushSimpleTestProcessor {
   }
 
   public function process_results() {
-    mkdir($this->xml_dir, 0755, TRUE);
+    // Ensure the directory exists
+    if(!is_dir($this->xml_dir)) {
+      mkdir($this->xml_dir, 0755, TRUE);
+    }
+
     foreach($this->xml_files as $test_class => $doc) {
       file_put_contents($this->xml_dir . '/' . $test_class . '.xml', $doc->saveXML());
     }

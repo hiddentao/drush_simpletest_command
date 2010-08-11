@@ -63,7 +63,6 @@ function simpletest_drush_command() {
 
 // A Drush command callback.
 function drush_simpletest_test($test_class=NULL) {
-
   $verbose = !is_null(drush_get_option('detail'));
   $color = !is_null(drush_get_option('color'));
   $error_on_fail = !is_null(drush_get_option('error-on-fail'));
@@ -73,12 +72,17 @@ function drush_simpletest_test($test_class=NULL) {
   if(!is_null(drush_get_option('recipients'))) {
     $processors[] = new DrushSimpleTestMailProcessor(explode(",", drush_get_option('recipients')));
   }
+  if(!is_null(drush_get_option('xml'))) {
+    $processors[] = new DrushSimpleTestXMLProcessor(drush_get_option('xml'));
+  }
   $test = new DrushSimpleTest($processors);
 
   if($test_class) {
     try {
       $test->test_class($test_class);
-      $processor->process_results;
+      foreach($processors as $processor) {
+        $processor->process_results();
+      }
     } catch(DrushSimpleTestException $e) {
       drush_set_error($e->getMessage(), $e->getDetail());
     }
