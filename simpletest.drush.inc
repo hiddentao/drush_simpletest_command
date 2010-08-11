@@ -4,6 +4,7 @@
 /**
  * @file Drush simpletest commands
  */
+require_once('drushsimpletest.inc');
 
 /**
  * Implementation of hook_drush_help().
@@ -26,8 +27,8 @@ function simpletest_drush_command() {
   $items['test'] = array(
       'description' => 'Run a specified test and outputs the results on the command line.',
       'examples' => array(
-        "drush test BlockTestCase" => "Run BlockTestCase and output results on the command line.",
         "drush test" => "Run all test cases and output results on the command line.",
+        "drush test BlockTestCase" => "Run BlockTestCase and output results on the command line.",
         ),
       'arguments' => array(
         'test_class' => 'The test case you want to run.',
@@ -39,18 +40,18 @@ function simpletest_drush_command() {
         '--mail' => 'Mail the recipients the output',
         '--xml' => 'The directory to output XML test results',
         ),
-      'drupal dependencies' => array('simpletest', 'drushsimpletest'),
+      'drupal dependencies' => array('simpletest'),
       'core' => array('6','7'),
       'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_FULL,
       );
   $items['test-list'] = array(
       'description' => 'List all tests',
-      'drupal dependencies' => array('simpletest', 'drushsimpletest'),
+      'drupal dependencies' => array('simpletest'),
       'core' => array('6','7'),
       );
   $items['test-clean'] = array(
       'description' => 'Delete leftover tables and files from prior test runs.',
-      'drupal dependencies' => array('simpletest', 'drushsimpletest'),
+      'drupal dependencies' => array('simpletest'),
       'core' => array('6','7'),
       );
   $items['test-drush'] = array(
@@ -58,13 +59,6 @@ function simpletest_drush_command() {
       'bootstrap' => DRUSH_BOOTSTRAP_DRUSH,
       );
   return $items;
-}
-
-// A drush command callback.
-function drush_simpletest_test_clean() {
-  $test = new DrushSimpleTest();
-  $test->clean();
-  drush_print("Simpletest environment successfully cleaned.");
 }
 
 // A Drush command callback.
@@ -110,6 +104,13 @@ function drush_simpletest_test_list() {
       drush_print("\t" . $class . ' - ' . $info['name']);
     }
   }
+}
+
+// A drush command callback.
+function drush_simpletest_test_clean() {
+  $test = new DrushSimpleTest();
+  $test->clean();
+  drush_print("Simpletest environment successfully cleaned.");
 }
 
 /**

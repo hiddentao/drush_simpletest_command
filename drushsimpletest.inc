@@ -134,7 +134,7 @@ abstract class DrushSimpleTestProcessor {
 /**
  * Formats the output to JUnit compatible XML.
  */
-class DrushSimpleTestXMLProcessor implements DrushSimpleTestProcessor {
+class DrushSimpleTestXMLProcessor extends DrushSimpleTestProcessor {
   private $xml_dir;
   private $xml_files;
 
@@ -152,7 +152,7 @@ class DrushSimpleTestXMLProcessor implements DrushSimpleTestProcessor {
       $root = $doc->appendChild($root);
       $this->xml_files[$class] = $doc;
     } else {
-      $doc= $this->xml_files[$class];
+      $doc = $this->xml_files[$class];
     }
 
     // Save the result into the XML:
@@ -169,12 +169,19 @@ class DrushSimpleTestXMLProcessor implements DrushSimpleTestProcessor {
       $case->appendChild($fail);
     }
   }
+
+  public function process_results() {
+    mkdir($this->xml_dir, 0755, TRUE);
+    foreach($this->xml_files as $test_class => $doc) {
+      file_put_contents($this->xml_dir . '/' . $test_class . '.xml', $doc->saveXML());
+    }
+  }
 }
 
 /**
  * Formats the output and prints to stdout using drush_print.
  */
-class DrushSimpleTestPrintProcessor implements DrushSimpleTestProcessor {
+class DrushSimpleTestPrintProcessor extends DrushSimpleTestProcessor {
   private $results;
   private $verbose;
   private $color;
@@ -245,7 +252,7 @@ class DrushSimpleTestPrintProcessor implements DrushSimpleTestProcessor {
 /**
  * A simple processor which mails the results
  */
-class DrushSimpleTestMailProcessor implements DrushSimpleTestProcessor {
+class DrushSimpleTestMailProcessor extends DrushSimpleTestProcessor {
   private $recipients;
   private $results;
   private $statuses;
@@ -290,4 +297,4 @@ class DrushSimpleTestMailProcessor implements DrushSimpleTestProcessor {
     }
   }
 }
-?>
+
