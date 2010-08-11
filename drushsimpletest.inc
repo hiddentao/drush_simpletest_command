@@ -3,11 +3,11 @@
  * Drush simpletest class. Does all the heavy lifting for testing and uses 0 or
  * more processors to return the results.
  */
-public class DrushSimpleTest {
+class DrushSimpleTest {
   const SIMPLETEST_TIMER_NAME = 'simpletest_timer';
 
-  private final array $test_classes;
-  private final array $processor;
+  private $test_classes;
+  private $processor;
 
   public function __construct(array $processors=array()) {
     $this->test_classes = simpletest_test_get_all_classes();
@@ -18,7 +18,7 @@ public class DrushSimpleTest {
     return $this->test_classes;
   }
 
-  public function test_all_classes(boolean $stop_on_error=FALSE) {
+  public function test_all_classes(boolean $stop_on_error) {
     // Run all tests
     foreach($this->test_classes as $class => $details) {
       try {
@@ -85,8 +85,8 @@ public class DrushSimpleTest {
 /**
  * Exception class with a detail message
  */
-public class DrushSimpleTestException extends Exception {
-  public final string $detail;
+class DrushSimpleTestException extends Exception {
+  private $detail;
 
   public function __construct($message, string $detail=NULL) {
     parent::__construct($message);
@@ -134,9 +134,9 @@ abstract class DrushSimpleTestProcessor {
 /**
  * Formats the output to JUnit compatible XML.
  */
-public class DrushSimpleTestXMLProcessor implements DrushSimpleTestProcessor {
-  private final string $xml_dir;
-  private final array $xml_files;
+class DrushSimpleTestXMLProcessor implements DrushSimpleTestProcessor {
+  private $xml_dir;
+  private $xml_files;
 
   public function __construct(string $xml_dir) {
     $this->xml_dir = $xml_dir;
@@ -174,12 +174,12 @@ public class DrushSimpleTestXMLProcessor implements DrushSimpleTestProcessor {
 /**
  * Formats the output and prints to stdout using drush_print.
  */
-public class DrushSimpleTestPrintProcessor implements DrushSimpleTestProcessor {
-  private final array $results;
-  private final boolean $verbose;
-  private final boolean $color;
+class DrushSimpleTestPrintProcessor implements DrushSimpleTestProcessor {
+  private $results;
+  private $verbose;
+  private $color;
 
-  public function __construct(boolean $verbose=FALSE, boolean $color=TRUE) {
+  public function __construct($verbose=FALSE, $color=TRUE) {
     $this->results = array();
     $this->verbose = $verbose;
     $this->color = $color;
@@ -198,7 +198,7 @@ public class DrushSimpleTestPrintProcessor implements DrushSimpleTestProcessor {
       $summary = sprintf("%-10.10s %-30.30s %-5.5s\n",
           ucfirst($result->status), basename($result->file), $result->line);
 
-      $this->print($summary, self::color_code($result->status));
+      $this->print_message($summary, self::color_code($result->status));
 
       $lines = explode("\n", wordwrap(trim(strip_tags($result->message)), 76));
       foreach ($lines as $line) {
@@ -233,7 +233,7 @@ public class DrushSimpleTestPrintProcessor implements DrushSimpleTestProcessor {
    * @param $message The message to print.
    * @param $color_code The color code to use for coloring.
    */
-  private function print(string $message, int $color_code=0) {
+  private function print_message(string $message, int $color_code) {
     if ($this->color) {
       drush_print("\033[" . $color_code . "m" . $message . "\033[0m");
     } else {
@@ -245,10 +245,10 @@ public class DrushSimpleTestPrintProcessor implements DrushSimpleTestProcessor {
 /**
  * A simple processor which mails the results
  */
-public class DrushSimpleTestMailProcessor implements DrushSimpleTestProcessor {
-  private final array $recipients;
-  private final array $results;
-  private final array $statuses;
+class DrushSimpleTestMailProcessor implements DrushSimpleTestProcessor {
+  private $recipients;
+  private $results;
+  private $statuses;
 
   public function __construct(array $recipients) {
     $this->recipients = $recipients;
@@ -274,12 +274,12 @@ public class DrushSimpleTestMailProcessor implements DrushSimpleTestProcessor {
       // Build subject
       $statuses = array();
       foreach($this->statuses as $status => $count) {
-        $statuses[] = $count . " " . $status
+        $statuses[] = $count . " " . $status;
       }
       $subject = "Test results - " . implode(", ", $statuses);
 
       // FIXME implement me
-      $output = "Test results\n\n"
+      $output = "Test results\n\n";
       foreach($results as $result) {
         $output .= "Class: " . $result->class . "\n";
         $output .= wordwrap(trim(strip_tags($result->message)), 79);

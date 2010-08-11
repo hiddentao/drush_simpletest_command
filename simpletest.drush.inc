@@ -75,7 +75,7 @@ function drush_simpletest_test($test_class=NULL) {
   $error_on_fail = !is_null(drush_get_option('error-on-fail'));
 
   $processors = array();
-  $processors[] new DrushSimpleTestPrintProcessor($verbose, $color);
+  $processors[] = new DrushSimpleTestPrintProcessor($verbose, $color);
   if(!is_null(drush_get_option('recipients'))) {
     $processors[] = new DrushSimpleTestMailProcessor(explode(",", drush_get_option('recipients')));
   }
