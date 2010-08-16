@@ -64,26 +64,32 @@ function simpletest_drush_command() {
 
 // A Drush command callback.
 function drush_simpletest_test($test_class=NULL) {
-  $stop_on_error = !is_null(drush_get_option('error-on-fail'));
-
   $processors = array();
-  if(is_null(drush_get_option('quiet'))) {
-    $color = !is_null(drush_get_option('color'));
-    $processors[] = new DrushSimpleTestPrintProcessor($color);
-  }
-  if(!is_null(drush_get_option('recipients'))) {
-    $processors[] = new DrushSimpleTestMailProcessor(explode(",", drush_get_option('recipients')));
-  }
-  if(!is_null(drush_get_option('xml'))) {
-    $processors[] = new DrushSimpleTestXMLProcessor(drush_get_option('xml'));
-  }
+
+  // Stdout processor
+  $quiet = drush_get_option('quiet');
+  if(is_null($quiet))
+    $processors[] = new DrushSimpleTestPrintProcessor(!is_null(drush_get_option('color')));
+
+  // Mail processor
+  $recipients = drush_get_option('recipients');
+  if(!is_null($recipients))
+    $processors[] = new DrushSimpleTestMailProcessor(explode(",", $recipients));
+
+  // XML processor
+  $xml = drush_get_option('xml');
+  if(!is_null($xml))
+    $processors[] = new DrushSimpleTestXMLProcessor($xml);
+
   $test = new DrushSimpleTest($processors);
 
+  // Actually run the tests
   try {
     if($test_class) {
       $test->test_class($test_class);
     } else {
-       $test->test_all_classes($stop_on_error);
+      $stop_on_error = !is_null(drush_get_option('error-on-fail'));
+      $test->test_all_classes($stop_on_error);
     }
   } catch(DrushSimpleTestException $e) {
     drush_log($e->getMessage(), 'warning', $e->getDetail());
