@@ -364,24 +364,38 @@ class DrushSimpleTestMailProcessor extends DrushSimpleTestProcessor {
    * Processes the results by mailing
    */
   public function process_results() {
-  #  // FIXME implement me
-  #  if($this->results) {
-  #    // Build subject
-  #    $statuses = array();
-  #    foreach($this->statuses as $status => $count) {
-  #      $statuses[] = $count . " " . $status;
-  #    }
-  #    $subject = "Test results - " . implode(", ", $statuses);
+    $statuses = array();
+    $message = "Test results\n\n";
 
-  #    $output = "Test results\n\n";
-  #    foreach($results as $result) {
-  #      $output .= "Class: " . $result->class . "\n";
-  #      $output .= wordwrap(trim(strip_tags($result->message)), 79);
-  #    }
+    foreach($this->tests as $class => $results) {
+      $message .= "= Class: " . $class . "\n";
+      foreach($results['functions'] as $function => $messages) {
+        $message .= "== Function: " . $function . "\n";
+        foreach($messages as $result) {
+          // Update the status summary
+          if(array_key_exists($result->status, $statuses)) {
+            $statuses[$result->status]++;
+          } else {
+            $statuses[$result->status] = 1;
+          }
 
-  #    // Mail the results
-  #    mail(implode(",", $recipients), $subject, $output);
-  #  }
+          $message .= wordwrap(trim(strip_tags($result->message)), 70)."\n";
+        }
+        $message .= "\n\n";
+      }
+    }
+
+    if($statuses) {
+      // Build subject
+      $statuses_strings = array();
+      foreach($statuses as $status => $count) {
+        $statuses_strings[] = $count . " " . $status;
+      }
+      $subject = "Test results - " . implode(", ", $statuses_strings);
+
+      // Mail the results
+      mail(implode(",", $recipients), $subject, $message);
+    }
   }
 }
 
