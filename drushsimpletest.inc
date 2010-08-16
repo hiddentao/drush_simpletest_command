@@ -7,7 +7,8 @@ class DrushSimpleTest {
   const SIMPLETEST_TIMER_NAME = 'simpletest_timer';
 
   private $test_classes;
-  private $processor;
+
+  private $processors;
 
   public function __construct(array $processors=array()) {
     $this->test_classes = simpletest_test_get_all_classes();
@@ -19,6 +20,15 @@ class DrushSimpleTest {
 
   public function get_test_classes() {
     return $this->test_classes;
+  }
+
+  /**
+   * Returns whether the test class is a valid test class
+   *
+   * @return bool
+   */
+  public function is_valid_test_class($test_class) {
+    return array_key_exists($test_class, $this->test_classes) && class_exists($test_class);
   }
 
   public function test_all_classes($stop_on_error) {
@@ -51,7 +61,7 @@ class DrushSimpleTest {
   }
 
   public function test_class($test_class) {
-    if(!isset($this->test_classes[$test_class]) || !class_exists($test_class)) {
+    if(!$this->is_valid_test_class($test_class)) {
       throw new DrushSimpleTestException("Test class '$test_class' not found",
           t("Test case !case not found.  Perhaps you spelt it wrong or need to enable the module?", array('!case' => $test_class)));
     }
@@ -120,20 +130,28 @@ class DrushSimpleTestException extends Exception {
  * An abstract class which formats the results obtained by tests.
  */
 abstract class DrushSimpleTestProcessor {
+  /**
+   * array($class => array('time' => float, 'functions' => array($function_name => array('message1', ...))))
+   * @var array An array that stores the test results
+   */
   protected $tests;
 
+  /**
+   * Constructor
+   */
   protected function __construct() {
     $this->tests = array();
   }
 
   /**
+   * Add a suite which is basically a test class.
    */
   public function add_suite($class, $time=0) {
     $this->tests[$class] = array('time' => $time, 'functions' => array());
   }
 
   /**
-   * Function to process a single result. Is called by #add_test_results.
+   * Function to process a single result. Is called by #add_suite.
    *
    * @param $result A single result object as retrieved from the simpletest
    * database.
