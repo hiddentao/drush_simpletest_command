@@ -125,6 +125,9 @@ class DrushSimpleTest {
     }
   }
 
+  /**
+   * Cleans the simpletest environment.
+   */
   public function clean() {
     simpletest_clean_environment();
   }
@@ -134,13 +137,20 @@ class DrushSimpleTest {
  * Exception class with a detail message
  */
 class DrushSimpleTestException extends Exception {
+  /** A more detailed description */
   private $detail;
 
+  /**
+   * Constructor
+   */
   public function __construct($message, $detail=NULL) {
     parent::__construct($message);
     $this->detail = $detail;
   }
 
+  /**
+   * Returns a more detailed description.
+   */
   public function getDetail() {
     return $this->detail;
   }
@@ -198,7 +208,7 @@ abstract class DrushSimpleTestProcessor {
   }
 
   /**
-   * Function to be called to process the results. For example, output to stdout
+   * Function to be called to process the results. For example, output to stdout.
    */
   public abstract function process_results();
 }
@@ -207,12 +217,19 @@ abstract class DrushSimpleTestProcessor {
  * Formats the output to JUnit compatible XML.
  */
 class DrushSimpleTestXMLProcessor extends DrushSimpleTestProcessor {
+  /** The XML destination directory */
   private $xml_dir;
 
+  /**
+   * Constructor
+   */
   public function __construct($xml_dir) {
     $this->xml_dir = $xml_dir;
   }
 
+  /**
+   * Processes the results by transforming it into XML.
+   */
   public function process_results() {
     // Ensure the directory exists
     if(!is_dir($this->xml_dir)) {
@@ -260,8 +277,14 @@ class DrushSimpleTestXMLProcessor extends DrushSimpleTestProcessor {
  * Formats the output and prints to stdout using drush_print.
  */
 class DrushSimpleTestPrintProcessor extends DrushSimpleTestProcessor {
+  /** @var bool Whether to use color */
   private $color;
 
+  /**
+   * Constructor
+   *
+   * @param bool $color Whether to use color
+   */
   public function __construct($color=TRUE) {
     $this->results = array();
     $this->color = $color;
@@ -290,7 +313,7 @@ class DrushSimpleTestPrintProcessor extends DrushSimpleTestProcessor {
    * Get the color code associated with the specified status.
    *
    * @param $status The status string to get code for.
-   * @return Color code.
+   * @return int Color code.
    */
   private static function color_code($status) {
     switch ($status) {
@@ -325,8 +348,14 @@ class DrushSimpleTestPrintProcessor extends DrushSimpleTestProcessor {
  * A simple processor which mails the results
  */
 class DrushSimpleTestMailProcessor extends DrushSimpleTestProcessor {
+  /** @var array The recipients of the test results */
   private $recipients;
 
+  /**
+   * Constructor
+   *
+   * @param array $recipients The recipients of the tests results
+   */
   public function __construct(array $recipients) {
     $this->recipients = $recipients;
   }
