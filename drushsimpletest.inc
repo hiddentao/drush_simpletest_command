@@ -6,10 +6,17 @@
 class DrushSimpleTest {
   const SIMPLETEST_TIMER_NAME = 'simpletest_timer';
 
+  /** @var array contains all the test classes */
   private $test_classes;
 
+  /** @var array contains the output processors */
   private $processors;
 
+  /**
+   * Constructor
+   *
+   * @param array $processors The output processors
+   */
   public function __construct(array $processors=array()) {
     $this->test_classes = simpletest_test_get_all_classes();
     $this->processors = $processors;
@@ -18,6 +25,11 @@ class DrushSimpleTest {
     register_shutdown_function(array($this, "process_results"));
   }
 
+  /**
+   * Returns all the test classes. Each key is the class name.
+   *
+   * @return array
+   */
   public function get_test_classes() {
     return $this->test_classes;
   }
@@ -31,6 +43,11 @@ class DrushSimpleTest {
     return array_key_exists($test_class, $this->test_classes) && class_exists($test_class);
   }
 
+  /**
+   * Runs all test classes.
+   *
+   * @todo Clean up & document exception handlign
+   */
   public function test_all_classes($stop_on_error) {
     $error = FALSE;
 
@@ -52,7 +69,7 @@ class DrushSimpleTest {
   }
 
   /**
-   * Processes the results
+   * Processes the results.
    */
   public function process_results() {
     foreach($this->processors as $processor) {
@@ -60,6 +77,9 @@ class DrushSimpleTest {
     }
   }
 
+  /**
+   * Tests a single test class.
+   */
   public function test_class($test_class) {
     if(!$this->is_valid_test_class($test_class)) {
       throw new DrushSimpleTestException("Test class '$test_class' not found",
