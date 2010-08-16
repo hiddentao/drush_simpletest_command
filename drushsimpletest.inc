@@ -208,11 +208,9 @@ abstract class DrushSimpleTestProcessor {
  */
 class DrushSimpleTestXMLProcessor extends DrushSimpleTestProcessor {
   private $xml_dir;
-  private $xml_files;
 
   public function __construct($xml_dir) {
     $this->xml_dir = $xml_dir;
-    $this->xml_files = array();
   }
 
   public function process_results() {
