@@ -326,24 +326,10 @@ class DrushSimpleTestPrintProcessor extends DrushSimpleTestProcessor {
  */
 class DrushSimpleTestMailProcessor extends DrushSimpleTestProcessor {
   private $recipients;
-  private $results;
-  private $statuses;
 
   public function __construct(array $recipients) {
     $this->recipients = $recipients;
-    $this->results = array();
-    $this->statuses = array();
   }
-
-  #public function add_result($result, $time=0) {
-  #  $this->results[] = $result;
-
-  #  if(!isset($this->statuses[$result->status])) {
-  #    $this->statuses[$result->status] = 0;
-  #  } else {
-  #    $this->statuses[$result->status]++;
-  #  }
-  #}
 
   /**
    * Processes the results by mailing
