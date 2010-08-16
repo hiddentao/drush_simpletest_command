@@ -1,9 +1,7 @@
 <?php
 // $Id: simpletest.drush.inc,v 1.6 2010/01/20 16:23:38 weitzman Exp $
 
-/**
- * @file Drush simpletest commands
- */
+// Load Drush simpletest commands
 require_once('drushsimpletest.inc');
 
 /**
@@ -25,7 +23,6 @@ function simpletest_drush_help($section) {
  */
 function simpletest_drush_command() {
   $items['test'] = array(
-      'callback' => 'drush_simpletest_test',
       'description' => 'Run a specified test and outputs the results on the command line.',
       'examples' => array(
         "drush test" => "Run all test cases and output results on the command line.",
