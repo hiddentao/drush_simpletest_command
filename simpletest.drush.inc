@@ -69,7 +69,7 @@ function drush_simpletest_test($test_class=NULL) {
     $processors[] = new DrushSimpleTestPrintProcessor(!is_null(drush_get_option('color')));
 
   // Mail processor
-  $recipients = drush_get_option('recipients');
+  $recipients = drush_get_option('mail');
   if(!is_null($recipients))
     $processors[] = new DrushSimpleTestMailProcessor(explode(",", $recipients));
 
