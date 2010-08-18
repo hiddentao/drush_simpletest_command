@@ -374,13 +374,13 @@ class DrushSimpleTestMailProcessor extends DrushSimpleTestProcessor {
         $message .= "== Function: " . $function . "\n";
         foreach($messages as $result) {
           // Update the status summary
-          if(array_key_exists($result->status, $statuses)) {
-            $statuses[$result->status]++;
+          if(array_key_exists($result['status'], $statuses)) {
+            $statuses[$result['status']]++;
           } else {
-            $statuses[$result->status] = 1;
+            $statuses[$result['status']] = 1;
           }
 
-          $message .= wordwrap(trim(strip_tags($result->message)), 70)."\n";
+          $message .= wordwrap(trim(strip_tags($result['message'])), 70)."\n";
         }
         $message .= "\n\n";
       }
@@ -395,7 +395,7 @@ class DrushSimpleTestMailProcessor extends DrushSimpleTestProcessor {
       $subject = "Test results - " . implode(", ", $statuses_strings);
 
       // Mail the results
-      mail(implode(",", $recipients), $subject, $message);
+      mail(implode(",", $this->recipients), $subject, $message);
     }
   }
 }
