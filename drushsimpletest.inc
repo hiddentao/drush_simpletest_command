@@ -40,7 +40,7 @@ class DrushSimpleTest {
    * @return bool
    */
   public function is_valid_test_class($test_class) {
-    return array_key_exists($test_class, $this->test_classes) && class_exists($test_class);
+    return array_key_exists($test_class, $this->test_classes) && class_exists($test_class) && method_exists($test_class, 'run');
   }
 
   /**
@@ -242,6 +242,7 @@ class DrushSimpleTestXMLProcessor extends DrushSimpleTestProcessor {
       $doc->formatOutput = true;
       $root = $doc->createElement('testsuite');
       $root = $doc->appendChild($root);
+      $root->setAttribute('name', $class);
       $root->setAttribute('time', $results['time']);
 
       // Store each result
