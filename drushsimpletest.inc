@@ -287,7 +287,6 @@ class DrushSimpleTestPrintProcessor extends DrushSimpleTestProcessor {
    * @param bool $color Whether to use color
    */
   public function __construct($color=TRUE) {
-    $this->results = array();
     $this->color = $color;
   }
 
@@ -398,10 +397,4 @@ class DrushSimpleTestMailProcessor extends DrushSimpleTestProcessor {
       mail(implode(",", $this->recipients), $subject, $message);
     }
   }
-}
-
-// Change errors into exceptions
-set_error_handler("error_to_exception", E_ERROR );
-function error_to_exception($errno, $errstr, $errfile, $errline, $errcontext) {
-  throw new ErrorException($errno, $errstr, $errfile, $errline, $errcontext);
 }
