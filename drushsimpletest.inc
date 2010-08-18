@@ -177,7 +177,11 @@ abstract class DrushSimpleTestProcessor {
    * Add a suite which is basically a test class.
    */
   public function add_suite($class, $time=0) {
-    $this->tests[$class] = array('time' => $time, 'functions' => array());
+    $this->tests[$class] = array(
+      'time' => $time,
+      'functions' => array(),
+      'summary' => array(),
+    );
   }
 
   /**
@@ -187,24 +191,38 @@ abstract class DrushSimpleTestProcessor {
    * database.
    */
   public function add_result($result, $time=0) {
-    list($class, $name) = explode('->', $result->function, 2);
+    if(strpos('->', $result->function)) {
+      list($class, $name) = explode('->', $result->function, 2);
+    } else {
+      $class = '';
+      $name = $result->function;
+    }
 
     if(!isset($this->tests[$class])) {
       $this->add_suite($class);
     }
 
-    $functions = $this->tests[$class]['functions'];
-    if(!isset($functions[$name])) {
-      $this->tests[$class]['functions'][$name] = array();
+    $test = $this->tests[$class];
+
+    if(!isset($test['functions'][$name])) {
+      $test['functions'][$name] = array();
     }
 
     $f_res['time'] = $time;
     $f_res['status'] = $result->status;
     $f_res['message_group'] = $result->message_group;
-    $f_res['message'] = $result->message;
+    $f_res['message'] = htmlspecialchars_decode($result->message, ENT_QUOTES);
     $f_res['file'] = $result->file;
+    $f_res['line'] = $result->line;
 
     $this->tests[$class]['functions'][$name][] = $f_res;
+
+    // Update the status summary
+    if(array_key_exists($result->status, $test['summary'])) {
+      $test['summary'][$result->status]++;
+    } else {
+      $test['summary'][$result->status] = 1;
+    }
   }
 
   /**
@@ -244,6 +262,7 @@ class DrushSimpleTestXMLProcessor extends DrushSimpleTestProcessor {
       $root = $doc->appendChild($root);
       $root->setAttribute('name', $class);
       $root->setAttribute('time', $results['time']);
+      // FIXME parse $results['summary'] into failed, exception and such
 
       // Store each result
       foreach($results['functions'] as $function => $messages) {
@@ -295,18 +314,26 @@ class DrushSimpleTestPrintProcessor extends DrushSimpleTestProcessor {
    * terminal size.
    */
   public function process_results() {
-    // FIXME Implement me
-    #foreach($this->results as $result) {
-    #  $summary = sprintf("%-10.10s %-30.30s %-5.5s\n",
-    #      ucfirst($result->status), basename($result->file), $result->line);
+    foreach($this->tests as $class => $results) {
+      // Each function
+      foreach($results["functions"] as $function => $messages) {
+        // Each message
+        foreach($messages as $result) {
+        // print summary
+          $summary = sprintf("%-10.10s %-30.30s %-5.5s\n",
+              ucfirst($result["status"]), basename($result["file"]),
+              $result["line"]);
+          $this->print_message($summary, self::color_code($result["status"]));
 
-    #  $this->print_message($summary, self::color_code($result->status));
-
-    #  $lines = explode("\n", wordwrap(trim(strip_tags($result->message)), 76));
-    #  foreach ($lines as $line) {
-    #    drush_print('    '.$line);
-    #  }
-    #}
+          $lines = explode("\n", trim(strip_tags($result["message"])));
+          $color_code = $this->color_code($result["status"]);
+          foreach ($lines as $line) {
+            $this->print_message("    ".$line, $color_code);
+          }
+        }
+      }
+      $this->print_message("");
+    }
   }
 
   /**
@@ -317,11 +344,11 @@ class DrushSimpleTestPrintProcessor extends DrushSimpleTestProcessor {
    */
   private static function color_code($status) {
     switch ($status) {
-      case 'pass':
+      case 'Pass':
         return 32; // Green
-      case 'fail':
+      case 'Fail':
         return 31; // Red
-      case 'exception':
+      case 'Exception':
         return 33; // Brown
       default:
         return 0;
@@ -335,7 +362,7 @@ class DrushSimpleTestPrintProcessor extends DrushSimpleTestProcessor {
    * @param $message The message to print.
    * @param $color_code The color code to use for coloring.
    */
-  private function print_message($message, $color_code) {
+  private function print_message($message, $color_code=0) {
     if ($this->color) {
       drush_print("\033[" . $color_code . "m" . $message . "\033[0m");
     } else {
@@ -367,18 +394,23 @@ class DrushSimpleTestMailProcessor extends DrushSimpleTestProcessor {
     $statuses = array();
     $message = "Test results\n\n";
 
+    // Create the message
     foreach($this->tests as $class => $results) {
       $message .= "= Class: " . $class . "\n";
+
+      // Update the status summary
+      foreach($results['summary'] as $status => $count) {
+        if(array_key_exists($status, $statuses)) {
+          $statuses[$status] += $count;
+        } else {
+          $statuses[$status] = $count;
+        }
+      }
+
+      // Add each message
       foreach($results['functions'] as $function => $messages) {
         $message .= "== Function: " . $function . "\n";
         foreach($messages as $result) {
-          // Update the status summary
-          if(array_key_exists($result['status'], $statuses)) {
-            $statuses[$result['status']]++;
-          } else {
-            $statuses[$result['status']] = 1;
-          }
-
           $message .= wordwrap(trim(strip_tags($result['message'])), 70)."\n";
         }
         $message .= "\n\n";
