@@ -194,7 +194,7 @@ abstract class DrushSimpleTestProcessor {
     if(strpos('->', $result->function)) {
       list($class, $name) = explode('->', $result->function, 2);
     } else {
-      $class = '';
+      $class = $result->file;
       $name = $result->function;
     }
 
