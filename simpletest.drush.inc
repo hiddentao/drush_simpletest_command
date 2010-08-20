@@ -93,6 +93,9 @@ function drush_simpletest_test($test_class=NULL) {
   } catch(Exception $e) {
     drush_set_error($e->getMessage(), $e->getTraceAsString());
   }
+
+  // Process the results
+  $test->process_results();
 }
 
 // A Drush command callback.
