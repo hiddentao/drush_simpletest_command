@@ -12,6 +12,9 @@ class DrushSimpleTest {
   /** @var array contains the output processors */
   private $processors;
 
+  /** @var track whether we've already processed the results. */
+  private $results_processed = FALSE;
+  
   /**
    * Constructor
    *
@@ -20,8 +23,9 @@ class DrushSimpleTest {
   public function __construct(array $processors=array()) {
     $this->test_classes = simpletest_test_get_all_classes();
     $this->processors = $processors;
-
+    
     // Make sure that at shutdown we process the results
+    $this->results_processed = FALSE;
     register_shutdown_function(array($this, "process_results"));
   }
 
@@ -48,7 +52,7 @@ class DrushSimpleTest {
    *
    * @todo Clean up & document exception handlign
    */
-  public function test_all_classes($stop_on_error) {
+  public function test_all_classes() {
     $error = FALSE;
 
     // Run all tests
@@ -57,9 +61,6 @@ class DrushSimpleTest {
         $this->test_class($class);
       } catch(Exception $e) {
         $error = TRUE;
-        if($stop_on_error) {
-          throw $e;
-        }
       }
     }
 
@@ -72,9 +73,12 @@ class DrushSimpleTest {
    * Processes the results.
    */
   public function process_results() {
+  	if ($this->results_processed)
+  	 return;
     foreach($this->processors as $processor) {
       $processor->process_results();
     }
+    $this->results_processed = TRUE;
   }
 
   /**
@@ -185,13 +189,14 @@ abstract class DrushSimpleTestProcessor {
   }
 
   /**
-   * Function to process a single result. Is called by #add_suite.
+   * Function to process a single result.
    *
    * @param $result A single result object as retrieved from the simpletest
    * database.
    */
   public function add_result($result, $time=0) {
-    if(strpos('->', $result->function)) {
+  	
+    if(FALSE !== strpos($result->function, '->')) {
       list($class, $name) = explode('->', $result->function, 2);
     } else {
       $class = $result->file;
@@ -255,6 +260,7 @@ class DrushSimpleTestXMLProcessor extends DrushSimpleTestProcessor {
     }
 
     foreach($this->tests as $class => $results) {
+    	
       // Create the basic document
       $doc = new DomDocument('1.0');
       $doc->formatOutput = true;
@@ -283,13 +289,15 @@ class DrushSimpleTestXMLProcessor extends DrushSimpleTestProcessor {
             $case->appendChild($fail);
           }
         }
-
-        // Save the file
-        $file = $this->xml_dir . '/' . $class . '.xml';
-        $content = $doc->saveXML();
-        file_put_contents($file, $content);
-      }
-    }
+        
+      } // for each result
+      
+      // Save the file
+      $file = $this->xml_dir . '/' . $class . '.xml';
+      $content = $doc->saveXML();
+      file_put_contents($file, $content);
+      
+    } // for each test
   }
 }
 
